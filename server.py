@@ -85,6 +85,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 def run_http():
+    os.chdir("/opt/render/project/src")
     with socketserver.TCPServer(("0.0.0.0", HTTP_PORT), Handler) as httpd:
         print(f"HTTP on {HTTP_PORT}")
         httpd.serve_forever()
