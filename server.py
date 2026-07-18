@@ -3,14 +3,21 @@ import websockets
 import json
 import sqlite3
 import hashlib
-import http.server
-import socketserver
+from flask import Flask, send_from_directory
 import threading
 import os
 
 DB_PATH = "grim.db"
-HTTP_PORT = int(os.environ.get("PORT", 10000))
 WS_PORT = 8765
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory('.', path)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -79,23 +86,14 @@ async def handler(websocket):
         if user_id and user_id in clients:
             del clients[user_id]
 
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory="/opt/render/project/src", **kwargs)
-    def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        super().end_headers()
-
-def run_http():
-    with socketserver.TCPServer(("0.0.0.0", HTTP_PORT), Handler) as httpd:
-        print(f"HTTP on {HTTP_PORT}")
-        httpd.serve_forever()
-
 async def main():
     init_db()
     async with websockets.serve(handler, "0.0.0.0", WS_PORT):
         print(f"WS on {WS_PORT}")
         await asyncio.Future()
 
-threading.Thread(target=run_http, daemon=True).start()
+def run_flask():
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
+threading.Thread(target=run_flask, daemon=True).start()
 asyncio.run(main())
