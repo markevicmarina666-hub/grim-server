@@ -80,12 +80,13 @@ async def handler(websocket):
             del clients[user_id]
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory="/opt/render/project/src", **kwargs)
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         super().end_headers()
 
 def run_http():
-    os.chdir("/opt/render/project/src")
     with socketserver.TCPServer(("0.0.0.0", HTTP_PORT), Handler) as httpd:
         print(f"HTTP on {HTTP_PORT}")
         httpd.serve_forever()
