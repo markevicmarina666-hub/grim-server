@@ -3,9 +3,6 @@ import websockets
 import json
 import sqlite3
 import hashlib
-import http.server
-import socketserver
-import threading
 import os
 
 DB_PATH = "grim.db"
@@ -25,7 +22,21 @@ def hash_password(p):
 
 clients = {}
 
-async def handler(websocket):
+async def handle_http(path, response_headers):
+    if path == "/" or path == "":
+        path = "/index.html"
+    file_path = "." + path
+    if os.path.isfile(file_path):
+        ext = os.path.splitext(file_path)[1]
+        ct = "text/html"
+        if ext == ".css": ct = "text/css"
+        elif ext == ".js": ct = "application/javascript"
+        with open(file_path, "rb") as f:
+            body = f.read()
+        return 200, response_headers, body
+    return 404, response_headers, b"Not Found"
+
+async def ws_handler(websocket):
     user_id = None
     username = None
     try:
@@ -78,22 +89,10 @@ async def handler(websocket):
         if user_id and user_id in clients:
             del clients[user_id]
 
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header('Access-Control-Allow-Origin', '*')
-        super().end_headers()
-
-def run_http():
-    with socketserver.TCPServer(("0.0.0.0", PORT), Handler) as httpd:
-        print(f"HTTP on port {PORT}")
-        httpd.serve_forever()
-
 async def main():
     init_db()
-    print(f"WebSocket on port {PORT}")
-    async with websockets.serve(handler, "0.0.0.0", PORT):
+    async with websockets.serve(ws_handler, "0.0.0.0", PORT, process_request=handle_http):
+        print(f"Server on port {PORT}")
         await asyncio.Future()
 
-if __name__ == "__main__":
-    threading.Thread(target=run_http, daemon=True).start()
-    asyncio.run(main())
+asyncio.run(main())
